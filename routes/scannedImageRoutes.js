@@ -53,5 +53,6 @@ router.get(
   scannedImageController.getStrataWaste
 );
 
+router.post('/upload-base64', scannedImageController.uploadScannedImageBase64);
 
 module.exports = router;
