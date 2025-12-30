@@ -197,28 +197,26 @@ exports.uploadScannedImageBase64 = async (req, res) => {
   }
 
   try {
-    // Extract the base64 data (remove data URL prefix if present)
+    // Extract base64 data
     const base64Data = scannedImage.replace(/^data:image\/[a-z]+;base64,/, '');
 
-    // Generate unique filename
+    // Determine file extension
     const fileExtension = scannedImage.includes('data:image/png') ? 'png' :
       scannedImage.includes('data:image/jpeg') || scannedImage.includes('data:image/jpg') ? 'jpg' :
-        'jpg'; // default to jpg
+      'jpg'; // default jpg
 
     const filename = `${uuidv4()}.${fileExtension}`;
     const filePath = path.join('/var/www/images', filename);
 
     // Write file to disk
     await fs.promises.writeFile(filePath, base64Data, 'base64');
-
-    // Make sure the file is readable by web server
     await fs.promises.chmod(filePath, 0o644);
 
-    // Generate public URL - CHANGE THIS TO YOUR ACTUAL DOMAIN
-    const baseUrl = process.env.IMAGE_BASE_URL || 'https://your-domain.com'; // Set in .env
-    const imageUrl = `${baseUrl}/images/${filename}`;
+    // Generate public URL pointing to BusyBox server
+    const serverIp = '198.38.85.92';   // your server IP
+    const port = 8080;                 // BusyBox port
+    const imageUrl = `http://${serverIp}:${port}/${filename}`;
 
-    // Optionally log success
     logger.info(`Image uploaded successfully: ${imageUrl}`);
 
     res.status(200).json({
@@ -232,3 +230,5 @@ exports.uploadScannedImageBase64 = async (req, res) => {
     res.status(500).json({ error: 'Failed to upload and save image' });
   }
 };
+
+
