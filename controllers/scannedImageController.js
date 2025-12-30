@@ -1,6 +1,9 @@
 // Updated controllers/scannedImageController.js
 const { sql, poolPromise } = require('../config/db');
 const logger = require('../utils/logger');
+const fs = require('fs');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
 exports.createScannedImage = async (req, res) => {
   const { image_url, detections, transaction_id } = req.body;
@@ -11,11 +14,11 @@ exports.createScannedImage = async (req, res) => {
     for (const detection of detections) {
       const result = await pool.request()
         .input('material', sql.NVarChar, detection.material)
-        .input('confidence', sql.Decimal(5,2), detection.confidence)
+        .input('confidence', sql.Decimal(5, 2), detection.confidence)
         .input('points', sql.Int, detection.points)
         .input('carbon_points', sql.Int, detection.carbon_points)
-        .input('weight', sql.Decimal(10,2), detection.weight)
-        .input('area', sql.Decimal(10,2), detection.area)
+        .input('weight', sql.Decimal(10, 2), detection.weight)
+        .input('area', sql.Decimal(10, 2), detection.area)
         .input('image_url', sql.NVarChar(sql.MAX), image_url)
         .input('userId', sql.Int, req.user.userId)
         .input('createdBy', sql.Int, req.user.userId)
@@ -163,7 +166,7 @@ exports.getRecyclingTrends = async (req, res) => {
 };
 
 // Get waste distribution by material
- exports.getMaterialDistribution = async (req, res) => {
+exports.getMaterialDistribution = async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request().query(`
@@ -182,5 +185,50 @@ exports.getRecyclingTrends = async (req, res) => {
   } catch (err) {
     logger.error('GetMaterialDistribution error:', err);
     res.status(500).json({ error: 'Failed to fetch material distribution' });
+  }
+};
+
+
+exports.uploadScannedImageBase64 = async (req, res) => {
+  const { scannedImage } = req.body;
+
+  if (!scannedImage) {
+    return res.status(400).json({ error: 'scannedImage (base64 string) is required' });
+  }
+
+  try {
+    // Extract the base64 data (remove data URL prefix if present)
+    const base64Data = scannedImage.replace(/^data:image\/[a-z]+;base64,/, '');
+
+    // Generate unique filename
+    const fileExtension = scannedImage.includes('data:image/png') ? 'png' :
+      scannedImage.includes('data:image/jpeg') || scannedImage.includes('data:image/jpg') ? 'jpg' :
+        'jpg'; // default to jpg
+
+    const filename = `${uuidv4()}.${fileExtension}`;
+    const filePath = path.join('/var/www/images', filename);
+
+    // Write file to disk
+    await fs.promises.writeFile(filePath, base64Data, 'base64');
+
+    // Make sure the file is readable by web server
+    await fs.promises.chmod(filePath, 0o644);
+
+    // Generate public URL - CHANGE THIS TO YOUR ACTUAL DOMAIN
+    const baseUrl = process.env.IMAGE_BASE_URL || 'https://your-domain.com'; // Set in .env
+    const imageUrl = `${baseUrl}/images/${filename}`;
+
+    // Optionally log success
+    logger.info(`Image uploaded successfully: ${imageUrl}`);
+
+    res.status(200).json({
+      success: true,
+      image_url: imageUrl,
+      filename
+    });
+
+  } catch (err) {
+    logger.error('uploadScannedImageBase64 error:', err);
+    res.status(500).json({ error: 'Failed to upload and save image' });
   }
 };
