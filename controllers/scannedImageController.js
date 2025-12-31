@@ -215,7 +215,7 @@ exports.uploadScannedImageBase64 = async (req, res) => {
     // Generate public URL pointing to BusyBox server
     const serverIp = '198.38.85.92';   // your server IP
     const port = 8080;                 // BusyBox port
-    const imageUrl = `http://${serverIp}:${port}/${filename}`;
+    const imageUrl = `https://tapis-one.com/images/${filename}`;
 
     logger.info(`Image uploaded successfully: ${imageUrl}`);
 
@@ -230,5 +230,6 @@ exports.uploadScannedImageBase64 = async (req, res) => {
     res.status(500).json({ error: 'Failed to upload and save image' });
   }
 };
+
 
 
